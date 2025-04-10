@@ -16,21 +16,26 @@ app.use(express.json());
 app.post('/tools/scheduleMeeting', async (req, res) => {
   const input = req.body.input;
 
-  const prompt = `Extract a meeting object from the following input.
+  const prompt = `You are an AI assistant that extracts structured meeting details from natural language and returns them in strict JSON format.
 
-Input:
+INPUT:
 "${input}"
 
-Respond ONLY with valid JSON in this format:
+RULES:
+- Do NOT explain anything.
+- Do NOT include introductory text, markdown, or commentary.
+- Your response MUST be a single valid JSON object.
+
+EXAMPLE FORMAT:
 {
-  "summary": "Weekly Sync",
-  "startTime": "2025-04-15T14:00:00",
-  "endTime": "2025-04-15T14:30:00",
-  "attendees": ["alex@example.com"]
+  "summary": "Meeting with Alina",
+  "startTime": "2025-04-12T18:00:00",
+  "endTime": "2025-04-12T18:30:00",
+  "attendees": ["alina@example.com"]
 }
 
-Do NOT include any explanation. Do NOT wrap the JSON in markdown or code blocks.
-Just return the plain JSON.`;
+RETURN ONLY JSON.
+`;
 
   try {
     const response = await axios.post(
@@ -40,8 +45,7 @@ Just return the plain JSON.`;
         messages: [
           {
             role: 'system',
-            content:
-              'You are a scheduling assistant that ALWAYS returns only structured JSON objects with no explanation.'
+            content: 'You only respond with clean JSON objects. No explanations. No text outside the JSON.'
           },
           { role: 'user', content: prompt }
         ],
