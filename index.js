@@ -4,6 +4,8 @@ const axios = require('axios');
 const cors = require('cors');
 
 const app = express();
+
+// Use Render's dynamic port (fallback to 3000 if running locally)
 const port = process.env.PORT || 3000;
 
 app.use(cors());
@@ -31,14 +33,18 @@ Return a JSON object like:
       {
         model: 'gpt-4',
         messages: [
-          { role: 'system', content: 'You are a helpful assistant that extracts structured meeting data from natural text.' },
+          {
+            role: 'system',
+            content:
+              'You are a helpful assistant that extracts structured meeting data from natural text. Always return a valid JSON object with keys: summary, startTime, endTime, attendees.'
+          },
           { role: 'user', content: prompt }
         ],
         temperature: 0.3
       },
       {
         headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
           'Content-Type': 'application/json'
         }
       }
@@ -46,17 +52,30 @@ Return a JSON object like:
 
     const result = response.data.choices[0].message.content;
 
+    // Try to validate JSON (optional safety)
+    let parsedOutput;
+    try {
+      parsedOutput = JSON.parse(result);
+    } catch {
+      // Return raw if not valid JSON — n8n will handle it later
+      parsedOutput = result;
+    }
+
     res.json({
-      output: result,
+      output: parsedOutput,
       tool_name: 'scheduleMeeting'
     });
 
   } catch (err) {
-    console.error(err.response?.data || err.message);
+    console.error('OpenAI Error:', err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to get response from OpenAI' });
   }
 });
 
+app.get('/', (req, res) => {
+  res.send('✅ MCP Server is running');
+});
+
 app.listen(port, () => {
-  console.log(`MCP server running at http://localhost:${port}`);
+  console.log(`✅ MCP server running on http://localhost:${port}`);
 });
