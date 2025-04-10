@@ -11,22 +11,16 @@ app.use(express.json());
 
 /**
  * 🛠 Tool: scheduleMeeting
- * This tool extracts structured meeting data (summary, startTime, endTime, attendees) from natural language input
+ * Extracts structured meeting info (summary, startTime, endTime, attendees)
+ * from natural text using OpenAI GPT-4
  */
 app.post('/tools/scheduleMeeting', async (req, res) => {
   const input = req.body.input;
 
-  const prompt = `You are an AI assistant that extracts structured meeting details from natural language and returns them in strict JSON format.
+  const prompt = `
+You are a scheduling tool. Extract structured meeting information from the input.
 
-INPUT:
-"${input}"
-
-RULES:
-- Do NOT explain anything.
-- Do NOT include introductory text, markdown, or commentary.
-- Your response MUST be a single valid JSON object.
-
-EXAMPLE FORMAT:
+⚠️ Respond ONLY with a valid JSON object in the EXACT format below:
 {
   "summary": "Meeting with Alina",
   "startTime": "2025-04-12T18:00:00",
@@ -34,7 +28,12 @@ EXAMPLE FORMAT:
   "attendees": ["alina@example.com"]
 }
 
-RETURN ONLY JSON.
+❌ DO NOT explain
+❌ DO NOT use markdown or backticks
+❌ DO NOT say anything else
+
+INPUT:
+"${input}"
 `;
 
   try {
@@ -45,11 +44,11 @@ RETURN ONLY JSON.
         messages: [
           {
             role: 'system',
-            content: 'You only respond with clean JSON objects. No explanations. No text outside the JSON.'
+            content: 'You are an AI that ONLY returns JSON. No explanation. No markdown. No commentary.'
           },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.3
+        temperature: 0.2
       },
       {
         headers: {
@@ -65,9 +64,9 @@ RETURN ONLY JSON.
     try {
       parsedOutput = JSON.parse(result);
     } catch (err) {
-      console.error('❌ JSON parsing failed. Raw response:', result);
+      console.error('❌ Failed to parse OpenAI response as JSON:', result);
       return res.status(400).json({
-        error: 'Failed to parse JSON from OpenAI response',
+        error: 'Invalid JSON received from OpenAI',
         raw: result
       });
     }
@@ -88,7 +87,8 @@ app.get('/', (req, res) => {
   res.send('✅ MCP Server is running');
 });
 
-// Start the server
+// 🚀 Start the server
 app.listen(port, () => {
   console.log(`✅ MCP server running on http://localhost:${port}`);
 });
+
