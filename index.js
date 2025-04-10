@@ -4,28 +4,33 @@ const axios = require('axios');
 const cors = require('cors');
 
 const app = express();
-
-// Use Render's dynamic port (fallback to 3000 if running locally)
 const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
 
-// Tool: scheduleMeeting
+/**
+ * 🛠 Tool: scheduleMeeting
+ * This tool extracts structured meeting data (summary, startTime, endTime, attendees) from natural language input
+ */
 app.post('/tools/scheduleMeeting', async (req, res) => {
   const input = req.body.input;
 
-  const prompt = `Extract a structured meeting object from this input:
+  const prompt = `Extract a meeting object from the following input.
+
+Input:
 "${input}"
 
-Return a JSON object like:
+Respond ONLY with valid JSON in this format:
 {
-  "summary": "...",
-  "startTime": "2025-04-15T15:00:00",
-  "endTime": "2025-04-15T15:30:00",
-  "attendees": ["name@example.com"]
+  "summary": "Weekly Sync",
+  "startTime": "2025-04-15T14:00:00",
+  "endTime": "2025-04-15T14:30:00",
+  "attendees": ["alex@example.com"]
 }
-`;
+
+Do NOT include any explanation. Do NOT wrap the JSON in markdown or code blocks.
+Just return the plain JSON.`;
 
   try {
     const response = await axios.post(
@@ -36,7 +41,7 @@ Return a JSON object like:
           {
             role: 'system',
             content:
-              'You are a helpful assistant that extracts structured meeting data from natural text. Always return a valid JSON object with keys: summary, startTime, endTime, attendees.'
+              'You are a scheduling assistant that ALWAYS returns only structured JSON objects with no explanation.'
           },
           { role: 'user', content: prompt }
         ],
@@ -50,15 +55,17 @@ Return a JSON object like:
       }
     );
 
-    const result = response.data.choices[0].message.content;
+    const result = response.data.choices[0].message.content.trim();
 
-    // Try to validate JSON (optional safety)
     let parsedOutput;
     try {
       parsedOutput = JSON.parse(result);
-    } catch {
-      // Return raw if not valid JSON — n8n will handle it later
-      parsedOutput = result;
+    } catch (err) {
+      console.error('❌ JSON parsing failed. Raw response:', result);
+      return res.status(400).json({
+        error: 'Failed to parse JSON from OpenAI response',
+        raw: result
+      });
     }
 
     res.json({
@@ -67,15 +74,17 @@ Return a JSON object like:
     });
 
   } catch (err) {
-    console.error('OpenAI Error:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Failed to get response from OpenAI' });
+    console.error('❌ OpenAI API Error:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Failed to call OpenAI API' });
   }
 });
 
+// 🩺 Health check route
 app.get('/', (req, res) => {
   res.send('✅ MCP Server is running');
 });
 
+// Start the server
 app.listen(port, () => {
   console.log(`✅ MCP server running on http://localhost:${port}`);
 });
